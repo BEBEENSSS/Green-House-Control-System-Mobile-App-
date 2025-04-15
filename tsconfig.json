@@ -1,0 +1,7 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "types": ["react", "react-native"]
+  },
+  "include": ["src", "App.tsx", "HomeScreen.tsx", "src/screens", "src/screens/TemperatureScreen.tsx"]
+}
