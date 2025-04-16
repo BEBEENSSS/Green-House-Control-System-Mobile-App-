@@ -157,17 +157,17 @@ const TemperatureScreen = () => {
 
       <View style={styles.containerOption}>
         <View style={styles.toggleContainer}>
-          <Text style={styles.textOption}>Exhaust Fan</Text>
+          <Text style={styles.textOption}>Exhaust Fan {isExhaustFanEnabled ? '(ON)' : '(OFF)'}</Text>
           <CustomToggle value={isExhaustFanEnabled!} onValueChange={toggleExhaustFan} />
         </View>
         <View style={styles.toggleContainer}>
-          <Text style={styles.textOption}>Automatic</Text>
+          <Text style={styles.textOption}>Automatic Mode</Text>
           <CustomToggle value={isAutomatic!} onValueChange={toggleAutomatic} />
         </View>
 
         <View style={styles.toggleContainer}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Text style={styles.textOption}>Fan turn on at </Text>
+            <Text style={styles.textOption}>Turn On Fan At </Text>
             <Pressable onPress={() => {
               setFanTemp(confirmedFanTemp);
               setIsEditing(true);
@@ -187,7 +187,7 @@ const TemperatureScreen = () => {
                 onSubmitEditing={() => {
                   setConfirmedFanTemp(fanTemp);
                   setIsEditing(false);
-                  saveFanTempToFirebase(fanTemp); // 🔥 Save to Firebase
+                  saveFanTempToFirebase(fanTemp);
                 }}
                 onBlur={() => {
                   setFanTemp(confirmedFanTemp);
@@ -197,9 +197,7 @@ const TemperatureScreen = () => {
               <Text style={[styles.texttemp, { color: getTempColor(Number(fanTemp)) }]}>°C</Text>
             </View>
           ) : (
-            <Text style={[styles.texttemp, { color: getTempColor(Number(confirmedFanTemp)) }]}>
-              {confirmedFanTemp}°C
-            </Text>
+            <Text style={[styles.texttemp, { color: getTempColor(Number(confirmedFanTemp)) }]}>{confirmedFanTemp}°C</Text>
           )}
         </View>
       </View>

@@ -93,7 +93,7 @@ export default function HomeScreen() {
               <View style={styles.boxContent}>
                 <AnimatedCircleProgress value={soilMoistureValue} unit="%" colorScheme="water" />
               </View>
-              <Text style={styles.boxText}>Water Level</Text>
+              <Text style={styles.boxText}>Moisture Level</Text>
             </Animated.View>
           </TouchableWithoutFeedback>
         </View>
@@ -120,7 +120,7 @@ export default function HomeScreen() {
               <View style={styles.boxContent}>
                 <AnimatedCircleProgress value={20} unit="%" colorScheme="light" />
               </View>
-              <Text style={styles.boxText}>Light Exposed</Text>
+              <Text style={styles.boxText}>Light Exposure</Text>
             </Animated.View>
           </TouchableWithoutFeedback>
         </View>

@@ -20,8 +20,8 @@ export default function App(): JSX.Element {
         <Stack.Navigator id="HomeStack" initialRouteName="Home">
           <Stack.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
           <Stack.Screen name="Temperature" component={TemperatureScreen} options={{ title: 'Room Temperature' }} />
-          <Stack.Screen name="WaterLevel" component={WaterLevelScreen} options={{ title: 'Water Level' }} />
-          <Stack.Screen name="LightExposed" component={LightExposedScreen} options={{ title: 'Light Exposed' }} />
+          <Stack.Screen name="WaterLevel" component={WaterLevelScreen} options={{ title: 'Moisture Level' }} />
+          <Stack.Screen name="LightExposed" component={LightExposedScreen} options={{ title: 'Light Exposure' }} />
         </Stack.Navigator>
       </NavigationContainer>
     </Esp32DataProvider>

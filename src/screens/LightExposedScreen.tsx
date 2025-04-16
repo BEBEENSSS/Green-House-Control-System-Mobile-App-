@@ -29,8 +29,6 @@ const LightExposedScreen = () => {
     }
   }, [lightValue, isAutomaticLight]);
 
-  // Determine display status for Grow Light
-  const growLightStatus = isLightExposed ? 'ON' : 'OFF';
 
   // Handle manual toggle of Grow Light
   const toggleLightExposed = () => {
@@ -190,13 +188,13 @@ const LightExposedScreen = () => {
       <View style={styles.containerOption}>
         {/* Grow Light Toggle */}
         <View style={styles.toggleContainer}>
-          <Text style={styles.textOption}>Grow Light ({growLightStatus})</Text>
+          <Text style={styles.textOption}>Grow Light {isLightExposed ? '(ON)' : '(OFF)'}</Text>
           <CustomToggle value={isLightExposed} onValueChange={toggleLightExposed} />
         </View>
 
         {/* Automatic Toggle */}
         <View style={styles.toggleContainer}>
-          <Text style={styles.textOption}>Automatic</Text>
+          <Text style={styles.textOption}>Automatic Mode</Text>
           <CustomToggle value={isAutomaticLight} onValueChange={toggleAutomaticLight} />
         </View> 
 
