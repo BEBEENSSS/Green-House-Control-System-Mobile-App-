@@ -17,8 +17,8 @@ const TemperatureScreen = () => {
 
   const [isExhaustFanEnabled, setIsExhaustFanEnabled] = useState<boolean | null>(null);
   const [isAutomatic, setIsAutomatic] = useState<boolean | null>(null);
-  const [fanTemp, setFanTemp] = useState('24');
-  const [confirmedFanTemp, setConfirmedFanTemp] = useState('24');
+  const [fanTemp, setFanTemp] = useState('N/A');
+  const [confirmedFanTemp, setConfirmedFanTemp] = useState('N/A');
   const [isEditing, setIsEditing] = useState(false);
   const [screenReady, setScreenReady] = useState(false);
 
@@ -61,12 +61,30 @@ const TemperatureScreen = () => {
     };
   }, []);
 
+  useEffect(() => {
+    const db = getDatabase();
+    const fanTempRef = ref(db, 'roomTemp/fanTemp');
+  
+    const unsubscribeFanTemp = onValue(fanTempRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const value = snapshot.val().toString();
+        setFanTemp(value);
+        setConfirmedFanTemp(value);
+      }
+    });
+  
+    return () => {
+      unsubscribeFanTemp();
+    };
+  }, []);
+  
+
   // 🔁 Apply automatic fan control based on temperature
   useEffect(() => {
     if (isAutomatic && tempValue !== null) {
       const threshold = parseFloat(confirmedFanTemp);
       if (!isNaN(threshold)) {
-        const shouldEnableFan = tempValue > threshold;
+        const shouldEnableFan = tempValue >= threshold;
         setIsExhaustFanEnabled((prev) => {
           if (prev !== shouldEnableFan) {
             updateFanStatusInFirebase(shouldEnableFan);
@@ -112,6 +130,13 @@ const TemperatureScreen = () => {
     const fanRef = ref(db, 'actuators/exhaustFanStatus');
     set(fanRef, status);
   };
+
+  const saveFanTempToFirebase = (temp: string) => {
+    const db = getDatabase();
+    const fanTempRef = ref(db, 'roomTemp/fanTemp');
+    set(fanTempRef, Number(temp));
+  };
+  
 
   // 🚫 Wait for data to be ready
   if (!screenReady) return null;
@@ -162,11 +187,12 @@ const TemperatureScreen = () => {
                 onSubmitEditing={() => {
                   setConfirmedFanTemp(fanTemp);
                   setIsEditing(false);
+                  saveFanTempToFirebase(fanTemp); // 🔥 Save to Firebase
                 }}
                 onBlur={() => {
                   setFanTemp(confirmedFanTemp);
                   setIsEditing(false);
-                }}
+                }}                
               />
               <Text style={[styles.texttemp, { color: getTempColor(Number(fanTemp)) }]}>°C</Text>
             </View>
