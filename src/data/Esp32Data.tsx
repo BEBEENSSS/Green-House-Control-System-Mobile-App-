@@ -1,34 +1,65 @@
-// SharedDataContext.tsx
-import React, { createContext, useState, useContext } from 'react';
+import React, { createContext, useState, useEffect, ReactNode } from 'react';
+import { getDatabase, ref, onValue } from 'firebase/database';
+import { initializeApp } from 'firebase/app';
+import Constants from 'expo-constants';
 
-type SharedDataContextType = {
-  tempValue: number;
-  setTempValue: (value: number) => void;
-  waterValue: number;
-  setWaterValue: (value: number) => void;
-  lightValue: number;
-  setLightValue: (value: number) => void;
+
+// Firebase config (replace with your actual config)
+const firebaseConfig = {
+  apiKey: Constants.expoConfig?.extra?.firebaseApiKey,
+  authDomain: Constants.expoConfig?.extra?.firebaseAuthDomain,
+  databaseURL: Constants.expoConfig?.extra?.firebaseDatabaseURL,
+  projectId: Constants.expoConfig?.extra?.firebaseProjectId,
+  storageBucket: Constants.expoConfig?.extra?.firebaseStorageBucket,
+  messagingSenderId: Constants.expoConfig?.extra?.firebaseMessagingSenderId,
+  appId: Constants.expoConfig?.extra?.firebaseAppId,
+  measurementId: Constants.expoConfig?.extra?.firebaseMeasurementId,
 };
 
-const SharedDataContext = createContext<SharedDataContextType>({
-  tempValue: 27, // Default value
-  setTempValue: () => {},
-  waterValue: 98, // Default value
-  setWaterValue: () => {},
-  lightValue: 89, // Default value
-  setLightValue: () => {},
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const database = getDatabase(app);
+
+// 🔄 Context Setup
+interface Esp32DataContextType {
+  tempValue: number | null;
+  soilMoistureValue: number | null;
+}
+
+export const Esp32DataContext = createContext<Esp32DataContextType>({
+  tempValue: null,
+  soilMoistureValue: null,
 });
 
-export const SharedDataProvider: React.FC<{children: React.ReactNode}> = ({ children }) => {
-  const [tempValue, setTempValue] = useState(20);
-  const [waterValue, setWaterValue] = useState(20);
-  const [lightValue, setLightValue] = useState(20);
+export const Esp32DataProvider = ({ children }: { children: ReactNode }) => {
+  const [tempValue, setTempValue] = useState<number | null>(null);
+  const [soilMoistureValue, setSoilMoistureValue] = useState<number | null>(null);
+
+  useEffect(() => {
+    const tempRef = ref(database, '/sensors/temperature');
+    const unsubscribeTemp = onValue(tempRef, (snapshot) => {
+      const data = snapshot.val();
+      setTempValue(data);
+    });
+
+    const soilRef = ref(database, '/sensors/soilMoisture');
+    const unsubscribeSoil = onValue(soilRef, (snapshot) => {
+      const data = snapshot.val();
+      setSoilMoistureValue(data);
+    });
+
+
+    return () => {
+      // Firebase onValue automatically cleans up; this is a safe unsubscriber placeholder
+      unsubscribeTemp(); 
+      unsubscribeSoil();
+    };
+  }, []);
 
   return (
-    <SharedDataContext.Provider value={{ tempValue, setTempValue, waterValue, setWaterValue, lightValue, setLightValue }}>
+    <Esp32DataContext.Provider value={{ tempValue, soilMoistureValue }}>
       {children}
-    </SharedDataContext.Provider>
+    </Esp32DataContext.Provider>
   );
 };
-
-export const useSharedData = () => useContext(SharedDataContext);

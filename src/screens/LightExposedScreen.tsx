@@ -15,7 +15,7 @@ const LightExposedScreen = () => {
   const { id } = route.params;
   const { lightValue } = useSharedData();
 
-  const [isLightExposed, isLightExposedEnabled] = useState(false);
+  const [isLightExposed, isLightExposedEnabled] = useState(true);
   const [startTime, setStartTime] = useState('7:00 AM');
   const [duration, setDuration] = useState('12'); // in hours
   const [endTime, setEndTime] = useState('');
@@ -104,7 +104,7 @@ const LightExposedScreen = () => {
 
       <View style={styles.containerOption}>
         <View style={styles.toggleContainer}>
-          <Text style={styles.textOption}>Turn on Grow Light</Text>
+          <Text style={styles.textOption}>Grow Light (off)</Text>
           <CustomToggle value={isLightExposed} onValueChange={toggleLightExposed} />
         </View>
 

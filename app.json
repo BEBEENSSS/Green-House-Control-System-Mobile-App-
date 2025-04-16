@@ -3,6 +3,17 @@
     "newArchEnabled": true,
     "name": "GHCS",
     "slug": "GHCS",
-    "version": "1.0.0"
+    "version": "1.0.0",
+    "plugins": [
+      "react-native-ble-plx"
+    ],
+    "android": {
+      "permissions": [
+        "android.permission.BLUETOOTH",
+        "android.permission.BLUETOOTH_ADMIN",
+        "android.permission.BLUETOOTH_CONNECT"
+      ],
+      "package": "com.anonymous.GHCS"
+    }
   }
 }

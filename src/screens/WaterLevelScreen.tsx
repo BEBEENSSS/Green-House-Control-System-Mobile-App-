@@ -3,7 +3,7 @@ import { View, Text, TextInput, Pressable, Alert } from 'react-native';
 import { RouteProp, useRoute } from '@react-navigation/native';
 import { RootStackParamList } from '../types/navigation';
 import AnimatedCircleProgress from '../components/AnimatedCircleProgress';
-import { useSharedData } from '../data/Esp32Data';
+import { Esp32DataContext } from '../data/Esp32Data';
 import { styles } from '../styles/ScreenStyles';
 import CustomToggle from '../components/CustomToggle';
 import Icon from 'react-native-vector-icons/MaterialIcons';
@@ -13,7 +13,8 @@ type WaterLevelRouteProp = RouteProp<RootStackParamList, 'WaterLevel'>;
 const WaterLevelScreen = () => {
   const route = useRoute<WaterLevelRouteProp>();
   const { id } = route.params;
-  const { waterValue } = useSharedData();
+
+  const { soilMoistureValue } = React.useContext(Esp32DataContext);
 
   const [isWaterPumpEnabled, setIsWaterPumpEnabled] = useState(false);
 
@@ -62,7 +63,7 @@ const WaterLevelScreen = () => {
     <View style={styles.container}>
       <View style={styles.progressBar}>
         <AnimatedCircleProgress
-          value={waterValue}
+          value={soilMoistureValue}
           unit="%"
           colorScheme="water"
           size={200}

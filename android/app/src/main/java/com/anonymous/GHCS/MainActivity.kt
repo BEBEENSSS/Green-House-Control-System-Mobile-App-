@@ -1,4 +1,4 @@
-package com.ghcs
+package com.anonymous.GHCS
 
 import android.os.Build
 import android.os.Bundle

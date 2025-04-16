@@ -6,7 +6,7 @@ import AnimatedCircleProgress from './src/components/AnimatedCircleProgress';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from './src/types/navigation';
-import { useSharedData } from './src/data/Esp32Data';
+import { Esp32DataContext } from './src/data/Esp32Data';
 
 
 export default function HomeScreen() {
@@ -18,7 +18,8 @@ export default function HomeScreen() {
 
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
-  const { tempValue, waterValue, lightValue } = useSharedData();
+  const { tempValue } = React.useContext(Esp32DataContext);
+  const { soilMoistureValue } = React.useContext(Esp32DataContext);
 
   const handlePressIn = (scale, boxName) => {
     setPressedBox(boxName);
@@ -90,14 +91,14 @@ export default function HomeScreen() {
               }
             ]}>
               <View style={styles.boxContent}>
-                <AnimatedCircleProgress value={waterValue} unit="%" colorScheme="water" />
+                <AnimatedCircleProgress value={soilMoistureValue} unit="%" colorScheme="water" />
               </View>
               <Text style={styles.boxText}>Water Level</Text>
             </Animated.View>
           </TouchableWithoutFeedback>
         </View>
 
-        </View>
+      </View>
         
         <View style={styles.rowGap} />
         
@@ -117,14 +118,13 @@ export default function HomeScreen() {
               }
             ]}>
               <View style={styles.boxContent}>
-                <AnimatedCircleProgress value={lightValue} unit="%" colorScheme="light" />
+                <AnimatedCircleProgress value={20} unit="%" colorScheme="light" />
               </View>
               <Text style={styles.boxText}>Light Exposed</Text>
             </Animated.View>
           </TouchableWithoutFeedback>
         </View>
-          <View style={styles.gap} />
-        </View>
+          <View style={styles.gap} /></View>
       </View>
     </SafeAreaView>
   );
