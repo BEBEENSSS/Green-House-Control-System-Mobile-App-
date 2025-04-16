@@ -25,16 +25,19 @@ const database = getDatabase(app);
 interface Esp32DataContextType {
   tempValue: number | null;
   soilMoistureValue: number | null;
+  lightValue: string | null;
 }
 
 export const Esp32DataContext = createContext<Esp32DataContextType>({
   tempValue: null,
   soilMoistureValue: null,
+  lightValue: null,
 });
 
 export const Esp32DataProvider = ({ children }: { children: ReactNode }) => {
   const [tempValue, setTempValue] = useState<number | null>(null);
   const [soilMoistureValue, setSoilMoistureValue] = useState<number | null>(null);
+  const [lightValue, setLightValue] = useState<string | null>(null);
 
   useEffect(() => {
     const tempRef = ref(database, '/sensors/temperature');
@@ -49,6 +52,12 @@ export const Esp32DataProvider = ({ children }: { children: ReactNode }) => {
       setSoilMoistureValue(data);
     });
 
+    const lightRef = ref(database, '/sensors/ldr');
+    const unsubscribeLight = onValue(lightRef, (snapshot) => {
+      const data = snapshot.val();
+      setLightValue(data);
+    });
+
 
     return () => {
       // Firebase onValue automatically cleans up; this is a safe unsubscriber placeholder
@@ -58,7 +67,7 @@ export const Esp32DataProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   return (
-    <Esp32DataContext.Provider value={{ tempValue, soilMoistureValue }}>
+    <Esp32DataContext.Provider value={{ tempValue, soilMoistureValue, lightValue }}>
       {children}
     </Esp32DataContext.Provider>
   );

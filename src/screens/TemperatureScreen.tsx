@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { View, Text, TextInput, Pressable } from 'react-native';
 import { RouteProp, useRoute } from '@react-navigation/native';
 import { RootStackParamList } from '../types/navigation';
@@ -7,28 +7,97 @@ import AnimatedCircleProgress from '../components/AnimatedCircleProgress';
 import CustomToggle from '../components/CustomToggle';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { Esp32DataContext } from '../data/Esp32Data';
-
+import { getDatabase, ref, set, onValue } from 'firebase/database';
 
 type TemperatureRouteProp = RouteProp<RootStackParamList, 'Temperature'>;
 
 const TemperatureScreen = () => {
   const route = useRoute<TemperatureRouteProp>();
   const { id } = route.params;
-  
-  const [isExhaustFanEnabled, setIsExhaustFanEnabled] = useState(false);
-  const [isAutomatic, setIsAutomatic] = useState(false);
+
+  const [isExhaustFanEnabled, setIsExhaustFanEnabled] = useState<boolean | null>(null);
+  const [isAutomatic, setIsAutomatic] = useState<boolean | null>(null);
   const [fanTemp, setFanTemp] = useState('24');
   const [confirmedFanTemp, setConfirmedFanTemp] = useState('24');
   const [isEditing, setIsEditing] = useState(false);
+  const [screenReady, setScreenReady] = useState(false);
 
-  const { tempValue } = React.useContext(Esp32DataContext);
+  const { tempValue } = useContext(Esp32DataContext);
+
+  useEffect(() => {
+    const db = getDatabase();
+
+    const autoRef = ref(db, 'automaticMode/automaticTemp');
+    const fanRef = ref(db, 'actuators/exhaustFanStatus');
+
+    let autoLoaded = false;
+    let fanLoaded = false;
+
+    const checkReady = () => {
+      if (autoLoaded && fanLoaded) {
+        setScreenReady(true);
+      }
+    };
+
+    const unsubscribeAuto = onValue(autoRef, (snapshot) => {
+      if (snapshot.exists()) {
+        setIsAutomatic(snapshot.val());
+      }
+      autoLoaded = true;
+      checkReady();
+    });
+
+    const unsubscribeFan = onValue(fanRef, (snapshot) => {
+      if (snapshot.exists()) {
+        setIsExhaustFanEnabled(snapshot.val());
+      }
+      fanLoaded = true;
+      checkReady();
+    });
+
+    return () => {
+      unsubscribeAuto();
+      unsubscribeFan();
+    };
+  }, []);
+
+  // 🔁 Apply automatic fan control based on temperature
+  useEffect(() => {
+    if (isAutomatic && tempValue !== null) {
+      const threshold = parseFloat(confirmedFanTemp);
+      if (!isNaN(threshold)) {
+        const shouldEnableFan = tempValue > threshold;
+        setIsExhaustFanEnabled((prev) => {
+          if (prev !== shouldEnableFan) {
+            updateFanStatusInFirebase(shouldEnableFan);
+          }
+          return shouldEnableFan;
+        });
+      }
+    }
+  }, [tempValue, confirmedFanTemp, isAutomatic]);
 
   const toggleExhaustFan = () => {
-    setIsExhaustFanEnabled(previousState => !previousState);
+    setIsAutomatic(false);
+    const db = getDatabase();
+    const autoRef = ref(db, 'automaticMode/automaticTemp');
+    set(autoRef, false);
+
+    setIsExhaustFanEnabled((prev) => {
+      const newStatus = !prev;
+      updateFanStatusInFirebase(newStatus);
+      return newStatus;
+    });
   };
 
   const toggleAutomatic = () => {
-    setIsAutomatic(previousState => !previousState);
+    setIsAutomatic((prev) => {
+      const newStatus = !prev;
+      const db = getDatabase();
+      const autoRef = ref(db, 'automaticMode/automaticTemp');
+      set(autoRef, newStatus);
+      return newStatus;
+    });
   };
 
   const getTempColor = (temp: number) => {
@@ -38,11 +107,20 @@ const TemperatureScreen = () => {
     return '#1E90FF';
   };
 
+  const updateFanStatusInFirebase = (status: boolean) => {
+    const db = getDatabase();
+    const fanRef = ref(db, 'actuators/exhaustFanStatus');
+    set(fanRef, status);
+  };
+
+  // 🚫 Wait for data to be ready
+  if (!screenReady) return null;
+
   return (
     <View style={styles.container}>
       <View style={styles.progressBar}>
         <AnimatedCircleProgress
-          value={tempValue} // Use the state tempValue fetched from Firebase
+          value={tempValue !== null ? tempValue : 0}
           unit="°C"
           colorScheme="temp"
           size={200}
@@ -51,21 +129,22 @@ const TemperatureScreen = () => {
           fontColor="#2c3e50"
         />
       </View>
-      
+
       <View style={styles.containerOption}>
         <View style={styles.toggleContainer}>
           <Text style={styles.textOption}>Exhaust Fan</Text>
-          <CustomToggle value={isExhaustFanEnabled} onValueChange={toggleExhaustFan} />
+          <CustomToggle value={isExhaustFanEnabled!} onValueChange={toggleExhaustFan} />
         </View>
         <View style={styles.toggleContainer}>
           <Text style={styles.textOption}>Automatic</Text>
-          <CustomToggle value={isAutomatic} onValueChange={toggleAutomatic} />
+          <CustomToggle value={isAutomatic!} onValueChange={toggleAutomatic} />
         </View>
+
         <View style={styles.toggleContainer}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <Text style={styles.textOption}>Fan turn on at </Text>
             <Pressable onPress={() => {
-              setFanTemp(confirmedFanTemp);  // start editing with current confirmed value
+              setFanTemp(confirmedFanTemp);
               setIsEditing(true);
             }}>
               <Icon name="edit" size={20} color="#333" />
@@ -81,15 +160,14 @@ const TemperatureScreen = () => {
                 keyboardType="numeric"
                 autoFocus
                 onSubmitEditing={() => {
-                  setConfirmedFanTemp(fanTemp); // save new value
+                  setConfirmedFanTemp(fanTemp);
                   setIsEditing(false);
                 }}
                 onBlur={() => {
-                  setFanTemp(confirmedFanTemp); // revert to last saved value
+                  setFanTemp(confirmedFanTemp);
                   setIsEditing(false);
                 }}
               />
-
               <Text style={[styles.texttemp, { color: getTempColor(Number(fanTemp)) }]}>°C</Text>
             </View>
           ) : (
