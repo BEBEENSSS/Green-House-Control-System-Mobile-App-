@@ -12,9 +12,12 @@ import { getDatabase, ref, set, onValue } from 'firebase/database';
 type TemperatureRouteProp = RouteProp<RootStackParamList, 'Temperature'>;
 
 const TemperatureScreen = () => {
+  // Navigation and context
   const route = useRoute<TemperatureRouteProp>();
   const { id } = route.params;
+  const { tempValue } = useContext(Esp32DataContext);
 
+  // Component state
   const [isExhaustFanEnabled, setIsExhaustFanEnabled] = useState<boolean | null>(null);
   const [isAutomatic, setIsAutomatic] = useState<boolean | null>(null);
   const [fanTemp, setFanTemp] = useState('N/A');
@@ -22,13 +25,12 @@ const TemperatureScreen = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [screenReady, setScreenReady] = useState(false);
 
-  const { tempValue } = useContext(Esp32DataContext);
-
+  // Firebase data loading
   useEffect(() => {
     const db = getDatabase();
-
     const autoRef = ref(db, 'automaticMode/automaticTemp');
     const fanRef = ref(db, 'actuators/exhaustFanStatus');
+    const fanTempRef = ref(db, 'roomTemp/fanTemp');
 
     let autoLoaded = false;
     let fanLoaded = false;
@@ -39,6 +41,7 @@ const TemperatureScreen = () => {
       }
     };
 
+    // Subscribe to automatic mode changes
     const unsubscribeAuto = onValue(autoRef, (snapshot) => {
       if (snapshot.exists()) {
         setIsAutomatic(snapshot.val());
@@ -47,6 +50,7 @@ const TemperatureScreen = () => {
       checkReady();
     });
 
+    // Subscribe to fan status changes
     const unsubscribeFan = onValue(fanRef, (snapshot) => {
       if (snapshot.exists()) {
         setIsExhaustFanEnabled(snapshot.val());
@@ -55,16 +59,7 @@ const TemperatureScreen = () => {
       checkReady();
     });
 
-    return () => {
-      unsubscribeAuto();
-      unsubscribeFan();
-    };
-  }, []);
-
-  useEffect(() => {
-    const db = getDatabase();
-    const fanTempRef = ref(db, 'roomTemp/fanTemp');
-  
+    // Subscribe to fan temperature threshold
     const unsubscribeFanTemp = onValue(fanTempRef, (snapshot) => {
       if (snapshot.exists()) {
         const value = snapshot.val().toString();
@@ -72,14 +67,15 @@ const TemperatureScreen = () => {
         setConfirmedFanTemp(value);
       }
     });
-  
+
     return () => {
+      unsubscribeAuto();
+      unsubscribeFan();
       unsubscribeFanTemp();
     };
   }, []);
-  
 
-  // 🔁 Apply automatic fan control based on temperature
+  // Automatic fan control logic
   useEffect(() => {
     if (isAutomatic && tempValue !== null) {
       const threshold = parseFloat(confirmedFanTemp);
@@ -95,6 +91,27 @@ const TemperatureScreen = () => {
     }
   }, [tempValue, confirmedFanTemp, isAutomatic]);
 
+  // Helper functions
+  const getTempColor = (temp: number) => {
+    if (temp >= 40) return '#FF4500';  // Red
+    if (temp >= 30) return '#FFD700';   // Yellow
+    if (temp >= 20) return '#00C851';   // Green
+    return '#1E90FF';                   // Blue
+  };
+
+  const updateFanStatusInFirebase = (status: boolean) => {
+    const db = getDatabase();
+    const fanRef = ref(db, 'actuators/exhaustFanStatus');
+    set(fanRef, status);
+  };
+
+  const saveFanTempToFirebase = (temp: string) => {
+    const db = getDatabase();
+    const fanTempRef = ref(db, 'roomTemp/fanTemp');
+    set(fanTempRef, Number(temp));
+  };
+
+  // Event handlers
   const toggleExhaustFan = () => {
     setIsAutomatic(false);
     const db = getDatabase();
@@ -118,31 +135,23 @@ const TemperatureScreen = () => {
     });
   };
 
-  const getTempColor = (temp: number) => {
-    if (temp >= 40) return '#FF4500';
-    if (temp >= 30) return '#FFD700';
-    if (temp >= 20) return '#00C851';
-    return '#1E90FF';
+  const handleTempSubmit = () => {
+    setConfirmedFanTemp(fanTemp);
+    setIsEditing(false);
+    saveFanTempToFirebase(fanTemp);
   };
 
-  const updateFanStatusInFirebase = (status: boolean) => {
-    const db = getDatabase();
-    const fanRef = ref(db, 'actuators/exhaustFanStatus');
-    set(fanRef, status);
+  const handleTempEditCancel = () => {
+    setFanTemp(confirmedFanTemp);
+    setIsEditing(false);
   };
 
-  const saveFanTempToFirebase = (temp: string) => {
-    const db = getDatabase();
-    const fanTempRef = ref(db, 'roomTemp/fanTemp');
-    set(fanTempRef, Number(temp));
-  };
-  
-
-  // 🚫 Wait for data to be ready
+  // Render loading state if data isn't ready
   if (!screenReady) return null;
 
   return (
     <View style={styles.container}>
+      {/* Temperature display */}
       <View style={styles.progressBar}>
         <AnimatedCircleProgress
           value={tempValue !== null ? tempValue : 0}
@@ -155,16 +164,21 @@ const TemperatureScreen = () => {
         />
       </View>
 
+      {/* Controls section */}
       <View style={styles.containerOption}>
+        {/* Exhaust Fan Toggle */}
         <View style={styles.toggleContainer}>
           <Text style={styles.textOption}>Exhaust Fan {isExhaustFanEnabled ? '(ON)' : '(OFF)'}</Text>
           <CustomToggle value={isExhaustFanEnabled!} onValueChange={toggleExhaustFan} />
         </View>
+
+        {/* Automatic Mode Toggle */}
         <View style={styles.toggleContainer}>
           <Text style={styles.textOption}>Automatic Mode</Text>
           <CustomToggle value={isAutomatic!} onValueChange={toggleAutomatic} />
         </View>
 
+        {/* Temperature Threshold Setting */}
         <View style={styles.toggleContainer}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <Text style={styles.textOption}>Turn On Fan At </Text>
@@ -179,25 +193,23 @@ const TemperatureScreen = () => {
           {isEditing ? (
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <TextInput
-                style={[styles.texttemp, { color: getTempColor(Number(fanTemp)), marginRight: 4 }]}
+                style={[styles.texttemp, { 
+                  color: getTempColor(Number(fanTemp)), 
+                  marginRight: 4 
+                }]}
                 value={fanTemp}
                 onChangeText={setFanTemp}
                 keyboardType="numeric"
                 autoFocus
-                onSubmitEditing={() => {
-                  setConfirmedFanTemp(fanTemp);
-                  setIsEditing(false);
-                  saveFanTempToFirebase(fanTemp);
-                }}
-                onBlur={() => {
-                  setFanTemp(confirmedFanTemp);
-                  setIsEditing(false);
-                }}                
+                onSubmitEditing={handleTempSubmit}
+                onBlur={handleTempEditCancel}                
               />
               <Text style={[styles.texttemp, { color: getTempColor(Number(fanTemp)) }]}>°C</Text>
             </View>
           ) : (
-            <Text style={[styles.texttemp, { color: getTempColor(Number(confirmedFanTemp)) }]}>{confirmedFanTemp}°C</Text>
+            <Text style={[styles.texttemp, { color: getTempColor(Number(confirmedFanTemp)) }]}>
+              {confirmedFanTemp}°C
+            </Text>
           )}
         </View>
       </View>

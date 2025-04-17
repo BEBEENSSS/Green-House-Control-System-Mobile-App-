@@ -2,33 +2,37 @@ import React, { useState, useRef, useContext, useEffect } from 'react';
 import { View, Text, TextInput, Pressable, Alert } from 'react-native';
 import { RouteProp, useRoute } from '@react-navigation/native';
 import { RootStackParamList } from '../types/navigation';
-import AnimatedCircleProgress from '../components/AnimatedCircleProgress';
-import { Esp32DataContext } from '../data/Esp32Data';
 import { styles } from '../styles/ScreenStyles';
+import AnimatedCircleProgress from '../components/AnimatedCircleProgress';
 import CustomToggle from '../components/CustomToggle';
 import Icon from 'react-native-vector-icons/MaterialIcons';
+import { Esp32DataContext } from '../data/Esp32Data';
 import { getDatabase, ref, set, onValue } from 'firebase/database';
 
 type WaterLevelRouteProp = RouteProp<RootStackParamList, 'WaterLevel'>;
 
 const WaterLevelScreen = () => {
+  // Navigation and context
   const route = useRoute<WaterLevelRouteProp>();
   const { id } = route.params;
-
   const { soilMoistureValue } = useContext(Esp32DataContext);
 
+  // Component state
   const [isWaterPumpEnabled, setIsWaterPumpEnabled] = useState<boolean | null>(null);
   const [isAWSEnabled, setIsAWSEnabled] = useState(false);
+  const [screenReady, setScreenReady] = useState(false);
 
+  // Watering schedule state
   const [startTime, setStartTime] = useState('6:00 AM');
   const [endTime, setEndTime] = useState('7:00 AM');
   const [confirmedStartTime, setConfirmedStartTime] = useState('6:00 AM');
   const [confirmedEndTime, setConfirmedEndTime] = useState('7:00 AM');
   const [editingStep, setEditingStep] = useState<'start' | 'end' | null>(null);
-  const [screenReady, setScreenReady] = useState(false);
 
+  // Refs
   const endTimeInputRef = useRef<TextInput>(null);
 
+  // Firebase data loading
   useEffect(() => {
     const db = getDatabase();
     const waterPumpRef = ref(db, 'actuators/waterPumpStatus');
@@ -65,18 +69,38 @@ const WaterLevelScreen = () => {
     };
   }, []);
 
+  // Automatic pump control when moisture reaches 100%
   useEffect(() => {
-    // Auto turn off the water pump when moisture reaches 100%
     if (soilMoistureValue >= 100 && isWaterPumpEnabled) {
       updateWaterPumpStatusInFirebase(false);
       setIsWaterPumpEnabled(false);
     }
-  }, [soilMoistureValue]);
+  }, [soilMoistureValue, isWaterPumpEnabled]);
 
-  // Toggle Water Pump status
+  // Helper functions
+  const isValidTime = (time: string) => {
+    const timeRegex = /^(0?[1-9]|1[0-2]):[0-5][0-9]\s?(AM|PM)$/i;
+    return timeRegex.test(time.trim());
+  };
+
+  const formatTimeInput = (text: string) => {
+    return text.replace(/\s?(am|pm)$/i, (match) => ` ${match.trim().toUpperCase()}`);
+  };
+
+  // Firebase operations
+  const updateWaterPumpStatusInFirebase = (status: boolean) => {
+    const db = getDatabase();
+    const waterPumpRef = ref(db, 'actuators/waterPumpStatus');
+    set(waterPumpRef, status);
+  };
+
+  // Event handlers
   const toggleWaterPump = () => {
     if (soilMoistureValue >= 100 && !isWaterPumpEnabled) {
-      Alert.alert("Moisture Level Full", "Soil moisture is already at 100%. Water pump can't be turned on.");
+      Alert.alert(
+        "Moisture Level Full", 
+        "Soil moisture is already at 100%. Water pump can't be turned on."
+      );
       return;
     }
   
@@ -87,7 +111,6 @@ const WaterLevelScreen = () => {
     });
   };
 
-  // Toggle AWS (Automatic Watering Schedule) status
   const toggleAWS = () => {
     setIsAWSEnabled((prev) => {
       const newStatus = !prev;
@@ -96,18 +119,6 @@ const WaterLevelScreen = () => {
       set(awsRef, newStatus);
       return newStatus;
     });
-  };
-
-  // Update water pump status in Firebase
-  const updateWaterPumpStatusInFirebase = (status: boolean) => {
-    const db = getDatabase();
-    const waterPumpRef = ref(db, 'actuators/waterPumpStatus');
-    set(waterPumpRef, status);
-  };
-
-  const isValidTime = (time: string) => {
-    const timeRegex = /^(0?[1-9]|1[0-2]):[0-5][0-9]\s?(AM|PM)$/i;
-    return timeRegex.test(time.trim());
   };
 
   const handleStartSubmit = () => {
@@ -129,15 +140,18 @@ const WaterLevelScreen = () => {
     }
   };
 
-  const formatTimeInput = (text: string) => {
-    return text.replace(/\s?(am|pm)$/i, (match) => ` ${match.trim().toUpperCase()}`);
+  const startEditingSchedule = () => {
+    setStartTime(confirmedStartTime);
+    setEndTime(confirmedEndTime);
+    setEditingStep('start');
   };
 
-  // 🚫 Wait for data to be ready
+  // Render loading state if data isn't ready
   if (!screenReady) return null;
 
   return (
     <View style={styles.container}>
+      {/* Soil moisture display */}
       <View style={styles.progressBar}>
         <AnimatedCircleProgress
           value={soilMoistureValue}
@@ -150,24 +164,35 @@ const WaterLevelScreen = () => {
         />
       </View>
 
+      {/* Controls section */}
       <View style={styles.containerOption}>
+        {/* Water Pump Toggle */}
         <View style={styles.toggleContainer}>
-          <Text style={styles.textOption}>Water Pump {isWaterPumpEnabled ? '(ON)' : '(OFF)'}</Text>
-          <CustomToggle value={isWaterPumpEnabled!} onValueChange={toggleWaterPump} />
-        </View>
-        <View style={styles.toggleContainer}>
-          <Text style={styles.textOption}>Activate Watering Schedule</Text>
-          <CustomToggle value={isAWSEnabled} onValueChange={toggleAWS} />
+          <Text style={styles.textOption}>
+            Water Pump {isWaterPumpEnabled ? '(ON)' : '(OFF)'}
+          </Text>
+          <CustomToggle 
+            value={isWaterPumpEnabled!} 
+            onValueChange={toggleWaterPump} 
+          />
         </View>
 
+        {/* Automatic Watering Schedule Toggle */}
+        <View style={styles.toggleContainer}>
+          <Text style={styles.textOption}>
+            Activate Watering Schedule
+          </Text>
+          <CustomToggle 
+            value={isAWSEnabled} 
+            onValueChange={toggleAWS} 
+          />
+        </View>
+
+        {/* Watering Schedule Editor */}
         <View style={styles.toggleContainer}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <Text style={styles.textOption}>Watering Schedule</Text>
-            <Pressable onPress={() => {
-              setStartTime(confirmedStartTime);
-              setEndTime(confirmedEndTime);
-              setEditingStep('start');
-            }}>
+            <Pressable onPress={startEditingSchedule}>
               <Icon name="edit" size={20} color="#333" />
             </Pressable>
           </View>
@@ -188,11 +213,15 @@ const WaterLevelScreen = () => {
                     <Icon name="check" size={22} color="green" />
                   </Pressable>
                   <Text style={styles.textwater}>-</Text>
-                  <Text style={[styles.textwater, { width: 90, color: '#aaa' }]}>{endTime}</Text>
+                  <Text style={[styles.textwater, { width: 90, color: '#aaa' }]}>
+                    {endTime}
+                  </Text>
                 </>
               ) : (
                 <>
-                  <Text style={[styles.textwater, { width: 90, color: '#aaa' }]}>{startTime}</Text>
+                  <Text style={[styles.textwater, { width: 90, color: '#aaa' }]}>
+                    {startTime}
+                  </Text>
                   <Text style={styles.textwater}>-</Text>
                   <TextInput
                     ref={endTimeInputRef}

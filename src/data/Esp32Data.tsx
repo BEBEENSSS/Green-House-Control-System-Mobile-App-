@@ -1,5 +1,6 @@
 import React, { createContext, useState, useEffect, ReactNode } from 'react';
 import { getDatabase, ref, onValue } from 'firebase/database';
+import { Text } from 'react-native';
 import { initializeApp } from 'firebase/app';
 import Constants from 'expo-constants';
 
@@ -68,7 +69,8 @@ export const Esp32DataProvider = ({ children }: { children: ReactNode }) => {
 
   return (
     <Esp32DataContext.Provider value={{ tempValue, soilMoistureValue, lightValue }}>
-      {children}
+      {typeof children === 'string' ? <Text>{children}</Text> : children}
     </Esp32DataContext.Provider>
   );
+  
 };
