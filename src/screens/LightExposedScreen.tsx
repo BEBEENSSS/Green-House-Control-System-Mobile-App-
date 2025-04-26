@@ -103,93 +103,96 @@ const LightExposedScreen = () => {
 
   // Calculate time progress
   useEffect(() => {
-// Update the calculateProgress function in your useEffect
-const calculateProgress = () => {
-  if (!startTime || !duration) return;
+    const calculateProgress = () => {
+      if (!startTime || !duration) return;
 
-  // Get current Philippine time
-  const now = getPhilippineTime();
-  const currentTimeInMinutes = now.getHours() * 60 + now.getMinutes();
-  
-  const { hours: startH, minutes: startM } = parseTime(startTime);
-  const startTimeInMinutes = startH * 60 + startM;
-  const durationInMinutes = parseFloat(duration) * 60;
-  const endTimeInMinutes = (startTimeInMinutes + durationInMinutes) % 1440; // Wrap around midnight
+      // Get current Philippine time
+      const now = getPhilippineTime();
+      const currentTimeInMinutes = now.getHours() * 60 + now.getMinutes();
+      
+      const { hours: startH, minutes: startM } = parseTime(startTime);
+      const startTimeInMinutes = startH * 60 + startM;
+      const durationInMinutes = parseFloat(duration) * 60;
+      const endTimeInMinutes = (startTimeInMinutes + durationInMinutes) % 1440; // Wrap around midnight
 
-  // Calculate whether we're in an overnight schedule
-  const isOvernight = startTimeInMinutes + durationInMinutes > 1440;
-  
-  // Calculate progress
-  let percentage = 0;
-  let shouldBeActive = false;
+      // Calculate whether we're in an overnight schedule
+      const isOvernight = startTimeInMinutes + durationInMinutes > 1440;
+      
+      // Calculate progress
+      let percentage = 0;
+      let shouldBeActive = false;
 
-  if (isOvernight) {
-    // Overnight schedule case (e.g. 6:00 PM to 4:00 AM)
-    if (currentTimeInMinutes >= startTimeInMinutes) {
-      // After start time, same day
-      const elapsed = currentTimeInMinutes - startTimeInMinutes;
-      percentage = (elapsed / durationInMinutes) * 100;
-      shouldBeActive = true;
-    } else if (currentTimeInMinutes < endTimeInMinutes) {
-      // After midnight, before end time
-      const elapsed = (1440 - startTimeInMinutes) + currentTimeInMinutes;
-      percentage = (elapsed / durationInMinutes) * 100;
-      shouldBeActive = true;
-    } else {
-      // Before start time or after end time
-      percentage = currentTimeInMinutes < startTimeInMinutes ? 0 : 100;
-    }
-  } else {
-    // Normal same-day schedule
-    if (currentTimeInMinutes >= startTimeInMinutes && currentTimeInMinutes < endTimeInMinutes) {
-      const elapsed = currentTimeInMinutes - startTimeInMinutes;
-      percentage = (elapsed / durationInMinutes) * 100;
-      shouldBeActive = true;
-    } else {
-      percentage = currentTimeInMinutes < startTimeInMinutes ? 0 : 100;
-    }
-  }
+      if (isOvernight) {
+        // Overnight schedule case (e.g. 6:00 PM to 4:00 AM)
+        if (currentTimeInMinutes >= startTimeInMinutes) {
+          // After start time, same day
+          const elapsed = currentTimeInMinutes - startTimeInMinutes;
+          percentage = (elapsed / durationInMinutes) * 100;
+          shouldBeActive = true;
+        } else if (currentTimeInMinutes < endTimeInMinutes) {
+          // After midnight, before end time
+          const elapsed = (1440 - startTimeInMinutes) + currentTimeInMinutes;
+          percentage = (elapsed / durationInMinutes) * 100;
+          shouldBeActive = true;
+        } else {
+          // Before start time or after end time
+          percentage = currentTimeInMinutes < startTimeInMinutes ? 0 : 100;
+        }
+      } else {
+        // Normal same-day schedule
+        if (currentTimeInMinutes >= startTimeInMinutes && currentTimeInMinutes < endTimeInMinutes) {
+          const elapsed = currentTimeInMinutes - startTimeInMinutes;
+          percentage = (elapsed / durationInMinutes) * 100;
+          shouldBeActive = true;
+        } else {
+          percentage = currentTimeInMinutes < startTimeInMinutes ? 0 : 100;
+        }
+      }
 
-  // Clamp percentage between 0-100
-  percentage = Math.max(0, Math.min(100, percentage));
+      // Clamp percentage between 0-100
+      percentage = Math.max(0, Math.min(100, percentage));
 
-  // Update states
-  setExposurePercent(percentage);
-  set(ref(db, 'lightExposure/lightExPercentage'), Math.round(percentage));
+      // Update states
+      setExposurePercent(percentage);
+      set(ref(db, 'lightExposure/lightExPercentage'), Math.round(percentage));
 
-  if (isAutomaticLight) {
-    if (shouldBeActive !== isLightExposed) {
-      setIsLightExposed(shouldBeActive);
-      set(ref(db, 'actuators/growLightStatus'), shouldBeActive);
-    }
-  }
-};
+      if (isAutomaticLight) {
+        if (shouldBeActive !== isLightExposed) {
+          setIsLightExposed(shouldBeActive);
+          set(ref(db, 'actuators/growLightStatus'), shouldBeActive);
+        }
+      }
+    };
 
-// Update the parseTime function to handle the string format
-const parseTime = (timeStr: string) => {
-  // Handle cases where timeStr might have extra spaces
-  const cleanedTimeStr = timeStr.trim().toUpperCase();
-  const [time, meridian] = cleanedTimeStr.split(' ');
-  let [hours, minutes] = time.split(':').map(Number);
+    const parseTime = (timeStr: string) => {
+      // Handle cases where timeStr might have extra spaces
+      const cleanedTimeStr = timeStr.trim().toUpperCase();
+      const [time, meridian] = cleanedTimeStr.split(' ');
+      let [hours, minutes] = time.split(':').map(Number);
 
-  // Convert to 24-hour format
-  if (meridian === 'PM' && hours !== 12) hours += 12;
-  if (meridian === 'AM' && hours === 12) hours = 0;
+      // Convert to 24-hour format
+      if (meridian === 'PM' && hours !== 12) hours += 12;
+      if (meridian === 'AM' && hours === 12) hours = 0;
 
-  return { hours, minutes };
-};
+      return { hours, minutes };
+    };
 
-// Update the progress interval
-const progressInterval = setInterval(calculateProgress, 1000); // Update every second
-calculateProgress(); // Run immediately
+    // Update the progress interval
+    const progressInterval = setInterval(calculateProgress, 1000); // Update every second
+    calculateProgress(); // Run immediately
 
-return () => clearInterval(progressInterval);
+    return () => clearInterval(progressInterval);
   }, [startTime, duration, isAutomaticLight, lastActivationTime, screenReady]);
 
   // Automatic light control based on lightValue (only when in automatic mode)
   useEffect(() => {
     if (isAutomaticLight) {
-      setIsLightExposed(lightValue !== 'Bright');
+      const shouldTurnOff = lightValue === 'Bright';
+      if (shouldTurnOff !== !isLightExposed) {
+        const newStatus = !shouldTurnOff;
+        setIsLightExposed(newStatus);
+        set(ref(db, 'actuators/growLightStatus'), newStatus);
+      }
     }
   }, [lightValue, isAutomaticLight]);
 

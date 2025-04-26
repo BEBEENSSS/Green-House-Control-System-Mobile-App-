@@ -8,9 +8,7 @@ import WaterLevelScreen from './src/screens/WaterLevelScreen';
 import LightExposedScreen from './src/screens/LightExposedScreen';
 import { Esp32DataProvider } from './src/data/Esp32Data';
 
-const Stack = createNativeStackNavigator<
-  RootStackParamList, string
->();
+const Stack = createNativeStackNavigator<RootStackParamList, string>();
 
 export default function App(): JSX.Element {
   return (
