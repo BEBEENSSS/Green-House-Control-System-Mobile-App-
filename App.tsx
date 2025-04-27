@@ -13,12 +13,12 @@ const Stack = createNativeStackNavigator<RootStackParamList, string>();
 export default function App(): JSX.Element {
   return (
   <Esp32DataProvider> {/* 👈 Wrap with context */}
-  <NavigationContainer>
-    <Stack.Navigator id="HomeStack" initialRouteName="Home">
-      <Stack.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
-      <Stack.Screen name="Temperature" component={TemperatureScreen} options={{ title: 'Room Temperature' }} />
-      <Stack.Screen name="WaterLevel" component={WaterLevelScreen} options={{ title: 'Moisture Level' }} />
-      <Stack.Screen name="LightExposed" component={LightExposedScreen} options={{ title: 'Light Exposure' }} />
+    <NavigationContainer>
+      <Stack.Navigator id="HomeStack" initialRouteName="Home">
+        <Stack.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
+        <Stack.Screen name="Temperature" component={TemperatureScreen} options={{ title: 'Room Temperature' }} />
+        <Stack.Screen name="WaterLevel" component={WaterLevelScreen} options={{ title: 'Moisture Level' }} />
+        <Stack.Screen name="LightExposed" component={LightExposedScreen} options={{ title: 'Light Exposure' }} />
       </Stack.Navigator>
     </NavigationContainer>
   </Esp32DataProvider>

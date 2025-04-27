@@ -36,11 +36,19 @@ const LightExposedScreen = () => {
   const [exposurePercent, setExposurePercent] = useState(0);
   const [lastActivationTime, setLastActivationTime] = useState<number | null>(null);
 
+  // Countdown states
+  const [countdownPercent, setCountdownPercent] = useState(100);
+  const [countdownEndTime, setCountdownEndTime] = useState<number | null>(null);
+  const [isCountdownActive, setIsCountdownActive] = useState(false);
+
   // Editing states
   const [tempStartTime, setTempStartTime] = useState(startTime);
   const [tempDuration, setTempDuration] = useState(duration);
   const [isEditingStart, setIsEditingStart] = useState(false);
   const [isEditingDuration, setIsEditingDuration] = useState(false);
+
+  // Constants
+  const COUNTDOWN_DURATION = 8 * 60 * 60 * 1000; // 8 hours in milliseconds
 
   // Firebase data loading
   useEffect(() => {
@@ -49,6 +57,8 @@ const LightExposedScreen = () => {
     const lightExposureRef = ref(db, 'lightExposure');
     const lightExPercentageRef = ref(db, 'lightExposure/lightExPercentage');
     const lastActivationRef = ref(db, 'lightExposure/lastActivationTime');
+    const countdownEndTimeRef = ref(db, 'lightExposure/countdownEndTime');
+    const countdownPercentRef = ref(db, 'lightExposure/countdownPercent');
 
     const unsubscribeGrowLight = onValue(growLightRef, (snapshot) => {
       if (snapshot.exists()) {
@@ -86,12 +96,26 @@ const LightExposedScreen = () => {
       }
     });
 
+    const unsubscribeCountdownEndTime = onValue(countdownEndTimeRef, (snapshot) => {
+      if (snapshot.exists()) {
+        setCountdownEndTime(snapshot.val());
+      }
+    });
+
+    const unsubscribeCountdownPercent = onValue(countdownPercentRef, (snapshot) => {
+      if (snapshot.exists()) {
+        setCountdownPercent(snapshot.val());
+      }
+    });
+
     return () => {
       unsubscribeGrowLight();
       unsubscribeAutoMode();
       unsubscribeLightExposure();
       unsubscribePercentage();
       unsubscribeLastActivation();
+      unsubscribeCountdownEndTime();
+      unsubscribeCountdownPercent();
     };
   }, []);
 
@@ -101,7 +125,7 @@ const LightExposedScreen = () => {
     }
   }, [growLightLoaded, autoModeLoaded, lightExposureLoaded]);
 
-  // Calculate time progress
+  // Calculate time progress and countdown
   useEffect(() => {
     const calculateProgress = () => {
       if (!startTime || !duration) return;
@@ -109,6 +133,7 @@ const LightExposedScreen = () => {
       // Get current Philippine time
       const now = getPhilippineTime();
       const currentTimeInMinutes = now.getHours() * 60 + now.getMinutes();
+      const currentTimeMs = now.getTime();
       
       const { hours: startH, minutes: startM } = parseTime(startTime);
       const startTimeInMinutes = startH * 60 + startM;
@@ -156,6 +181,56 @@ const LightExposedScreen = () => {
       setExposurePercent(percentage);
       set(ref(db, 'lightExposure/lightExPercentage'), Math.round(percentage));
 
+      // Handle countdown logic
+      if (percentage >= 100 || currentTimeInMinutes < startTimeInMinutes) {
+        // Schedule is done or hasn't started yet - check if we should start countdown
+        if (!isCountdownActive) {
+          // Calculate when the countdown should end (8 hours after schedule end)
+          let countdownEndTimeMs;
+          
+          if (percentage >= 100) {
+            // Schedule is complete - calculate end time in milliseconds
+            const endTimeDate = new Date(now);
+            if (isOvernight && currentTimeInMinutes < endTimeInMinutes) {
+              // Current time is after midnight but before end time (overnight schedule)
+              endTimeDate.setHours(Math.floor(endTimeInMinutes / 60), endTimeInMinutes % 60, 0, 0);
+            } else {
+              // Normal case - schedule ended today
+              endTimeDate.setHours(Math.floor(endTimeInMinutes / 60), endTimeInMinutes % 60, 0, 0);
+            }
+            countdownEndTimeMs = endTimeDate.getTime() + COUNTDOWN_DURATION;
+          } else {
+            // Schedule hasn't started yet - countdown starts from now
+            countdownEndTimeMs = currentTimeMs + COUNTDOWN_DURATION;
+          }
+          
+          setCountdownEndTime(countdownEndTimeMs);
+          set(ref(db, 'lightExposure/countdownEndTime'), countdownEndTimeMs);
+          setIsCountdownActive(true);
+        }
+      } else {
+        // Schedule is active - reset countdown
+        if (isCountdownActive) {
+          setIsCountdownActive(false);
+          setCountdownPercent(100);
+          set(ref(db, 'lightExposure/countdownPercent'), 100);
+        }
+      }
+
+      // Calculate countdown if active
+      if (isCountdownActive && countdownEndTime) {
+        const remaining = Math.max(0, countdownEndTime - currentTimeMs);
+        const newCountdownPercent = (remaining / COUNTDOWN_DURATION) * 100;
+        
+        setCountdownPercent(newCountdownPercent);
+        set(ref(db, 'lightExposure/countdownPercent'), newCountdownPercent);
+
+        if (remaining <= 0) {
+          // Countdown finished
+          setIsCountdownActive(false);
+        }
+      }
+
       if (isAutomaticLight) {
         if (shouldBeActive !== isLightExposed) {
           setIsLightExposed(shouldBeActive);
@@ -178,24 +253,33 @@ const LightExposedScreen = () => {
     };
 
     // Update the progress interval
-    const progressInterval = setInterval(calculateProgress, 1000); // Update every second
+    const progressInterval = setInterval(calculateProgress, 60000); // Update every second
     calculateProgress(); // Run immediately
 
     return () => clearInterval(progressInterval);
-  }, [startTime, duration, isAutomaticLight, lastActivationTime, screenReady]);
+  }, [startTime, duration, isAutomaticLight, lastActivationTime, screenReady, isCountdownActive, countdownEndTime]);
 
   // Automatic light control based on lightValue (only when in automatic mode)
   useEffect(() => {
     if (isAutomaticLight) {
-      const shouldTurnOff = lightValue === 'Bright';
-      if (shouldTurnOff !== !isLightExposed) {
-        const newStatus = !shouldTurnOff;
-        setIsLightExposed(newStatus);
-        set(ref(db, 'actuators/growLightStatus'), newStatus);
+      // Only react to lightValue if the schedule is still ongoing (less than 100%)
+      if (exposurePercent < 100) {
+        const shouldTurnOff = lightValue === 'Bright';
+        if (shouldTurnOff !== !isLightExposed) {
+          const newStatus = !shouldTurnOff;
+          setIsLightExposed(newStatus);
+          set(ref(db, 'actuators/growLightStatus'), newStatus);
+        }
+      } else {
+        // If exposure is complete, make sure grow light is OFF
+        if (isLightExposed) {
+          setIsLightExposed(false);
+          set(ref(db, 'actuators/growLightStatus'), false);
+        }
       }
     }
-  }, [lightValue, isAutomaticLight]);
-
+  }, [lightValue, isAutomaticLight, exposurePercent, isLightExposed]);
+  
   // Helper functions
   const isValidTime = (time: string) => {
     const timeRegex = /^(0?[1-9]|1[0-2]):[0-5][0-9]\s?(AM|PM)$/i;
@@ -328,7 +412,7 @@ const LightExposedScreen = () => {
     <View style={styles.container}>
       <View style={styles.progressBar}>
         <AnimatedCircleProgress
-          value={Math.round(exposurePercent)}
+          value={isCountdownActive ? Math.round(countdownPercent) : Math.round(exposurePercent)}
           unit="%"
           colorScheme="light"
           size={200}
