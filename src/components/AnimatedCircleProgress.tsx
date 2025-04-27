@@ -64,7 +64,7 @@ const AnimatedCircleProgress = ({
   let strokeColor = '#00BFFF';
   if (colorScheme === 'temp') {
     if (value >= 40) strokeColor = '#FF4500';
-    else if (value >= 30) strokeColor = '#FFD700';
+    else if (value >= 36) strokeColor = '#FFD700';
     else if (value >= 20) strokeColor = '#00C851';
     else strokeColor = '#1E90FF';
   } else if (colorScheme === 'water') {

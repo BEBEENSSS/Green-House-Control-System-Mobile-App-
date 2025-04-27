@@ -8,9 +8,10 @@ import { getDatabase, ref, set, onValue } from 'firebase/database';
 import AnimatedCircleProgress from '../components/AnimatedCircleProgress';
 import CustomToggle from '../components/CustomToggle';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import { getPhilippineTimeString, getPhilippineTime } from '../utils/getPhilippineTime';
+import { getPhilippineTime } from '../utils/getPhilippineTime';
 
 type LightExposedRouteProp = RouteProp<RootStackParamList, 'LightExposed'>;
+
 
 const LightExposedScreen = () => {
   // Navigation and context
@@ -489,9 +490,6 @@ const LightExposedScreen = () => {
                 onSubmitEditing={handleDurationSubmit}
                 blurOnSubmit={false}
               />
-              <Pressable onPress={confirmDuration}>
-                <Icon name="check" size={24} color="green" />
-              </Pressable>
             </View>
           ) : (
             <Text style={styles.textwater}>{duration} hour(s)</Text>

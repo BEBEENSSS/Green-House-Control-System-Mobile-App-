@@ -94,7 +94,7 @@ const TemperatureScreen = () => {
   // Helper functions
   const getTempColor = (temp: number) => {
     if (temp >= 40) return '#FF4500';  // Red
-    if (temp >= 30) return '#FFD700';   // Yellow
+    if (temp >= 36) return '#FFD700';   // Yellow
     if (temp >= 20) return '#00C851';   // Green
     return '#1E90FF';                   // Blue
   };

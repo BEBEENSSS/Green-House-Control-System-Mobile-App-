@@ -13,3 +13,5 @@ export const getPhilippineTimeString = (): string => {
     hour12: true,
   });
 };
+
+console.log(getPhilippineTime);
